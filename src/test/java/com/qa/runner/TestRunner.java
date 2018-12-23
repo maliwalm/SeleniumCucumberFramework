@@ -1,0 +1,153 @@
+package com.qa.runner;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.file.Paths;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.events.EventFiringWebDriver;
+import org.testng.ITestResult;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.BeforeTest;
+import org.testng.asserts.SoftAssert;
+
+import com.aventstack.extentreports.ExtentReports;
+import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.markuputils.ExtentColor;
+import com.aventstack.extentreports.markuputils.MarkupHelper;
+import com.qa.common.Browser;
+import com.qa.common.Config;
+import com.qa.common.DataSourceOperations;
+import com.qa.common.ExtentManager;
+import com.qa.common.JiraUtil;
+import com.qa.common.Util;
+
+import cucumber.api.CucumberOptions;
+import cucumber.api.testng.AbstractTestNGCucumberTests;
+
+
+@CucumberOptions(features= {"src/test/java/com/qa/features"}, glue = {"com/qa/stepDefinations"})
+public class TestRunner extends AbstractTestNGCucumberTests{
+	
+	public static WebDriver driver;
+	public static EventFiringWebDriver eDriver;
+	protected static ExtentReports extent;
+	protected static ThreadLocal<ExtentTest> parentTest = new ThreadLocal<ExtentTest>();
+	protected static ThreadLocal<ExtentTest> test = new ThreadLocal<ExtentTest>();
+	public static ExtentTest TestLogger;
+	protected Util util;
+	protected static String objName;
+	public static JiraUtil jira = new JiraUtil();
+
+	protected static String seperator = ",";
+	protected static DataSourceOperations dataSourceOperations = new DataSourceOperations();
+	protected static SoftAssert softAssert = new SoftAssert();
+	static Logger log = Logger.getLogger(TestRunner.class);
+	
+	public TestRunner() {
+		PropertyConfigurator.configure("log4j.properties");
+		log.info(" : TestRunner - Constructor called");
+	}
+	
+	@BeforeSuite
+	protected void BeforeSuite() throws IOException {
+		log.info("-----------------EXECUTION START----------------------");
+		log.info(" : TestBase - BeforeSuite called");
+		extent = ExtentManager.getInstance();
+		Util.isFolderExistAtPath(Config.ScreenShotsPath);
+		Util.isFolderExistAtPath(Config.ZipPath);
+		FileUtils.cleanDirectory(new File(Config.ScreenShotsPath));
+		}
+
+	@BeforeClass
+	protected void BeforeClass() {
+		log.info(" : TestRunner - BeforeTest called");
+		ExtentTest parent = extent.createTest(getClass().getName());
+		parentTest.set(parent);
+	}
+
+
+	@BeforeTest
+	protected void BeforeTest() {
+		log.info(" : TestRunner - BeforeTest called");
+	}
+
+
+	@BeforeMethod
+	protected void BeforeMethod(Method method) throws InterruptedException {
+		log.info(" : TestRunner - BeforeMethod called");
+		Browser.openbrowser();
+		TestLogger = parentTest.get().createNode(method.getName());
+		test.set(TestLogger);
+	}
+
+	@AfterMethod
+	protected void AfterMethod(ITestResult result) {
+		log.info(" : TestRunner - AfterMethod called");
+		try {
+		if (result.getStatus() == ITestResult.FAILURE) {
+			test.get().fail(result.getThrowable());
+			test.get().fail(MarkupHelper.createLabel(result.getName() + "Test case FAILED", ExtentColor.RED));
+			if (Config.screenshotOnFailure.equalsIgnoreCase("true")){
+				String screenShotPath = Util.captureScreenshot(eDriver, "Failure");
+				if (Config.logDefectOnFailure.equalsIgnoreCase("true")){
+					String summary = result.getName() + "Test case Failed";
+					String description = result.getName() + "Test case Failed";
+					String defectId = jira.createDefect(summary, description);
+					jira.attachScreenshot(defectId, screenShotPath);
+				}
+				
+				test.get().fail("Snapshot below: " + test.get().addScreenCaptureFromPath(screenShotPath));
+			}
+		} else 
+			if (result.getStatus() == ITestResult.SKIP){
+				test.get().skip(result.getThrowable());
+				test.get().skip(MarkupHelper.createLabel(result.getName() + "Test case SKIPPED", ExtentColor.AMBER));
+				if (Config.screenshotOnSkip.equalsIgnoreCase("true")){
+					String screenShotPath = Util.captureScreenshot(eDriver, "Skipped");
+					test.get().skip("Snapshot below: " + test.get().addScreenCaptureFromPath(screenShotPath));
+					}
+			}
+		else{
+			test.get().pass(MarkupHelper.createLabel(result.getName() + "Test case PASSED", ExtentColor.GREEN));
+		}
+		}
+		catch (IOException e){
+			System.err.format("No Element Found to enter text" + e);
+		}
+	}
+
+
+	@AfterTest
+	protected void AfterTest() {
+		log.info(" : TestRunner - AfterTest called");
+	}
+
+
+	@AfterSuite
+	protected void afterSuite() throws Exception {
+		log.info(" : TestRunner - AfterSuite called");
+		if (eDriver != null)
+			eDriver.quit();
+		driver = null;
+		extent.flush();
+		Util.setScreenshotRelativePath();
+		String zipFilePath = Config.ZipPath + Util.generateUniqueName() + ".zip";
+		Util.zipFolder(Paths.get(Config.ScreenShotsPath), Paths.get(zipFilePath));
+		if (Config.setReportEmail.equalsIgnoreCase("True")) {
+			Util.SendMail(zipFilePath);
+		}
+		log.info("---------------EXECUTION COMPLETED--------------------");
+	}
+	
+	
+}

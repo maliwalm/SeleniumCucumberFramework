@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Failed suite [Default suite]">
+  <test name="Default test(failed)">
+    <classes>
+      <class name="com.qa.runner.TestRunner">
+        <methods>
+          <include name="BeforeSuite"/>
+          <include name="setUpClass"/>
+          <include name="BeforeClass"/>
+          <include name="AfterMethod"/>
+          <include name="feature" invocation-numbers="0"/>
+          <include name="BeforeMethod"/>
+          <include name="afterSuite"/>
+          <include name="AfterTest"/>
+          <include name="BeforeTest"/>
+          <include name="tearDownClass"/>
+        </methods>
+      </class> <!-- com.qa.runner.TestRunner -->
+    </classes>
+  </test> <!-- Default test(failed) -->
+</suite> <!-- Failed suite [Default suite] -->
