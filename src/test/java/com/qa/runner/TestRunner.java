@@ -30,12 +30,15 @@ import com.qa.common.DataSourceOperations;
 import com.qa.common.ExtentManager;
 import com.qa.common.JiraUtil;
 import com.qa.common.Util;
-
 import cucumber.api.CucumberOptions;
 import cucumber.api.testng.AbstractTestNGCucumberTests;
 
 
-@CucumberOptions(features= {"src/test/java/com/qa/features"}, glue = {"com/qa/stepDefinations"})
+@CucumberOptions(features= {"src/test/java/com/qa/features"},
+				 glue = {"com/qa/stepDefinations"},
+				 monochrome=true,
+				 plugin = {"pretty", "html:target/cucumber-reports"})
+				
 public class TestRunner extends AbstractTestNGCucumberTests{
 	
 	public static WebDriver driver;
